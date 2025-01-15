@@ -22,7 +22,7 @@ module cpu( clk, reset, AB, DI, DO, WE, IRQ, NMI, RDY );
 
 input clk;              // CPU clock 
 input reset;            // reset signal
-output reg [15:0] AB;   // address bus
+output [15:0] AB;   // address bus
 input [7:0] DI;         // data in, read bus
 output [7:0] DO;        // data out, write bus
 output WE;              // write enable
@@ -59,8 +59,8 @@ wire AV;                // ALU overflow flag
 wire AN;                // ALU negative flag
 wire HC;                // ALU half carry
 
-reg  [7:0] AI;          // ALU Input A
-reg  [7:0] BI;          // ALU Input B
+wire [7:0] AI;          // ALU Input A
+wire [7:0] BI;          // ALU Input B
 wire [7:0] DI;          // Data In
 wire [7:0] IR;          // Instruction register
 reg  [7:0] DO;          // Data Out 
@@ -106,7 +106,7 @@ reg [5:0] state;
  */
 
 reg PC_inc;             // Increment PC
-reg [15:0] PC_temp;     // intermediate value of PC 
+wire [15:0] PC_temp;     // intermediate value of PC 
 
 reg [1:0] src_reg;      // source register index
 reg [1:0] dst_reg;      // destination register index
@@ -226,7 +226,7 @@ parameter
 /*
  * easy to read names in simulator output
  */
-reg [8*6-1:0] statename;
+output reg [8*6-1:0] statename;
 
 always @*
     case( state )
@@ -293,29 +293,41 @@ always @*
  * Program Counter Increment/Load. First calculate the base value in
  * PC_temp.
  */
-always @*
-    case( state )
-        DECODE:         if( (~I & IRQ) | NMI_edge )
-                            PC_temp = { ABH, ABL };
-                        else
-                            PC_temp = PC;
+// always @*
+//     case( state )
+//         DECODE:         if( (~I & IRQ) | NMI_edge )
+//                             PC_temp = { ABH, ABL };
+//                         else
+//                             PC_temp = PC;
 
 
-        JMP1,
-        JMPI1,
-        JSR3,
-        RTS3,           
-        RTI4:           PC_temp = { DIMUX, ADD };
+//         JMP1,
+//         JMPI1,
+//         JSR3,
+//         RTS3,           
+//         RTI4:           PC_temp = { DIMUX, ADD };
                         
-        BRA1:           PC_temp = { ABH, ADD };
+//         BRA1:           PC_temp = { ABH, ADD };
 
-        BRA2:           PC_temp = { ADD, PCL };
+//         BRA2:           PC_temp = { ADD, PCL };
 
-        BRK2:           PC_temp =      res ? 16'hfffc : 
-                                  NMI_edge ? 16'hfffa : 16'hfffe;
+//         BRK2:           PC_temp =      res ? 16'hfffc : 
+//                                   NMI_edge ? 16'hfffa : 16'hfffe;
 
-        default:        PC_temp = PC;
-    endcase
+//         default:        PC_temp = PC;
+//     endcase
+
+assign PC_temp = (state == DECODE) ? ( (~I & IRQ) | NMI_edge ? { ABH, ABL } : PC)
+               : (state == JMP1)
+               | (state == JMPI1)
+               | (state == JSR3)
+               | (state == RTS3)
+               | (state == RTI4) ? { DIMUX, ADD }
+               : (state == BRA1) ? { ABH, ADD }
+               : (state == BRA2) ? { ABH, ADD }
+               : (state == BRK2) ? (res ? 16'hfffc : 
+                                  NMI_edge ? 16'hfffa : 16'hfffe)
+               : PC;
 
 /*
  * Determine wether we need PC_temp, or PC_temp + 1
@@ -358,52 +370,96 @@ parameter
         ZEROPAGE  = 8'h00,
         STACKPAGE = 8'h01;
 
-always @*
-    case( state )
-        ABSX1,
-        INDX3,
-        INDY2,
-        JMP1,
-        JMPI1,
-        RTI4,
-        ABS1:           AB = { DIMUX, ADD };
+// always @*
+//     case( state )
+//         ABSX1,
+//         INDX3,
+//         INDY2,
+//         JMP1,
+//         JMPI1,
+//         RTI4,
+//         ABS1:           AB = { DIMUX, ADD };
 
-        BRA2,
-        INDY3,
-        ABSX2:          AB = { ADD, ABL };
+//         BRA2,
+//         INDY3,
+//         ABSX2:          AB = { ADD, ABL };
 
-        BRA1:           AB = { ABH, ADD };
+//         BRA1:           AB = { ABH, ADD };
 
-        JSR0,
-        PUSH1,
-        RTS0,
-        RTI0,
-        BRK0:           AB = { STACKPAGE, regfile };
+//         JSR0,
+//         PUSH1,
+//         RTS0,
+//         RTI0,
+//         BRK0:           AB = { STACKPAGE, regfile };
 
-        BRK1,
-        JSR1,
-        PULL1,
-        RTS1,
-        RTS2,
-        RTI1,
-        RTI2,
-        RTI3,
-        BRK2:           AB = { STACKPAGE, ADD };
+//         BRK1,
+//         JSR1,
+//         PULL1,
+//         RTS1,
+//         RTS2,
+//         RTI1,
+//         RTI2,
+//         RTI3,
+//         BRK2:           AB = { STACKPAGE, ADD };
         
-        INDY1,
-        INDX1,
-        ZPX1,
-        INDX2:          AB = { ZEROPAGE, ADD };
+//         INDY1,
+//         INDX1,
+//         ZPX1,
+//         INDX2:          AB = { ZEROPAGE, ADD };
 
-        ZP0,
-        INDY0:          AB = { ZEROPAGE, DIMUX };
+//         ZP0,
+//         INDY0:          AB = { ZEROPAGE, DIMUX };
 
-        REG,
-        READ,
-        WRITE:          AB = { ABH, ABL };
+//         REG,
+//         READ,
+//         WRITE:          AB = { ABH, ABL };
 
-        default:        AB = PC;
-    endcase
+//         default:        AB = PC;
+//     endcase
+
+assign AB = (state == ABSX1)
+          | (state == INDX3)
+          | (state == INDY2)
+          | (state == JMP1)
+          | (state == JMPI1)
+          | (state == RTI4)
+          | (state == ABS1) ? { DIMUX, ADD }
+
+          : (state == BRA2)
+          | (state == INDY3)
+          | (state == ABSX2) ? { ADD, ABL }
+
+          : (state == BRA1) ? { ABH, ADD }
+
+          : (state == JSR0)
+          | (state == PUSH1)
+          | (state == RTS0)
+          | (state == RTI0)
+          | (state == BRK0) ? { STACKPAGE, regfile }
+
+          : (state == BRK1)
+          | (state == JSR1)
+          | (state == PULL1)
+          | (state == RTS1)
+          | (state == RTS2)
+          | (state == RTI1)
+          | (state == RTI2)
+          | (state == RTI3)
+          | (state == BRK2) ? { STACKPAGE, ADD }
+
+          : (state == INDY1)
+          | (state == INDX1)
+          | (state == ZPX1)
+          | (state == INDX2) ? { ZEROPAGE, ADD }
+
+          : (state == ZP0)
+          | (state == INDY0) ? { ZEROPAGE, DIMUX }
+
+          : (state == REG)
+          | (state == READ)
+          | (state == WRITE) ? { ABH, ABL }
+
+          : PC;
 
 /*
  * ABH/ABL pair is used for registering previous address bus state.
@@ -629,76 +685,124 @@ always @(posedge clk)
  * ALU A Input MUX 
  */
 
-always @*
-    case( state )
-        JSR1,
-        RTS1,
-        RTI1,
-        RTI2,
-        BRK1,
-        BRK2,
-        INDX1:  AI = ADD;
+// always @*
+//     case( state )
+//         JSR1,
+//         RTS1,
+//         RTI1,
+//         RTI2,
+//         BRK1,
+//         BRK2,
+//         INDX1:  AI = ADD;
 
-        REG,
-        ZPX0,
-        INDX0,
-        ABSX0,
-        RTI0,
-        RTS0,
-        JSR0,
-        JSR2,
-        BRK0,
-        PULL0,
-        INDY1,
-        PUSH0,
-        PUSH1:  AI = regfile;
+//         REG,
+//         ZPX0,
+//         INDX0,
+//         ABSX0,
+//         RTI0,
+//         RTS0,
+//         JSR0,
+//         JSR2,
+//         BRK0,
+//         PULL0,
+//         INDY1,
+//         PUSH0,
+//         PUSH1:  AI = regfile;
 
-        BRA0,
-        READ:   AI = DIMUX;
+//         BRA0,
+//         READ:   AI = DIMUX;
 
-        BRA1:   AI = ABH;       // don't use PCH in case we're 
+//         BRA1:   AI = ABH;       // don't use PCH in case we're 
 
-        FETCH:  AI = load_only ? 0 : regfile;
+//         FETCH:  AI = load_only ? 0 : regfile;
 
-        DECODE,
-        ABS1:   AI = 8'hxx;     // don't care
+//         DECODE,
+//         ABS1:   AI = 8'hxx;     // don't care
 
-        default:  AI = 0;
-    endcase
+//         default:  AI = 0;
+//     endcase
 
+assign AI = (state == JSR1)
+          | (state == RTS1)
+          | (state == RTI1)
+          | (state == RTI2)
+          | (state == BRK1)
+          | (state == BRK2)
+          | (state == INDX1) ? ADD
+        :   (state == REG)
+          | (state == ZPX0)
+          | (state == INDX0)
+          | (state == ABSX0)
+          | (state == RTI0)
+          | (state == RTS0)
+          | (state == JSR0)
+          | (state == JSR2)
+          | (state == BRK0)
+          | (state == PULL0)
+          | (state == INDY1)
+          | (state == PUSH0)
+          | (state == PUSH1) ? regfile
+        :   (state == BRA0) | (state == READ) ? DIMUX
+        :   (state == BRA1) ? ABH     // don't use PCH in case we're 
+        :   (state == FETCH) ? (load_only ? 0 : regfile)
+        :   (state == DECODE) | (state == ABS1) ? 8'hxx
+        : 0;
 
 /*
  * ALU B Input mux
  */
 
-always @*
-    case( state )
-         BRA1,
-         RTS1,
-         RTI0,
-         RTI1,
-         RTI2,
-         INDX1,
-         READ,
-         REG,
-         JSR0,
-         JSR1,
-         JSR2,
-         BRK0,
-         BRK1,
-         BRK2,
-         PUSH0, 
-         PUSH1,
-         PULL0,
-         RTS0:  BI = 8'h00;
+// always @*
+//     case( state )
+//          BRA1,
+//          RTS1,
+//          RTI0,
+//          RTI1,
+//          RTI2,
+//          INDX1,
+//          READ,
+//          REG,
+//          JSR0,
+//          JSR1,
+//          JSR2,
+//          BRK0,
+//          BRK1,
+//          BRK2,
+//          PUSH0, 
+//          PUSH1,
+//          PULL0,
+//          RTS0:  BI = 8'h00;
         
-         BRA0:  BI = PCL;
+//          BRA0:  BI = PCL;
 
-         DECODE,
-         ABS1:  BI = 8'hxx;
+//          DECODE,
+//          ABS1:  BI = 8'hxx;
 
-         default:       BI = DIMUX;
-    endcase
+//          default:       BI = DIMUX;
+//     endcase
+
+assign BI = (state == BRA0) ? PCL
+          : (state == DECODE) | (state == ABS1) ? 8'hxx
+          :   (state == BRA1)
+            | (state == RTS1)
+            | (state == RTI0)
+            | (state == RTI1)
+            | (state == RTI2)
+            | (state == INDX1)
+            | (state == READ)
+            | (state == REG)
+            | (state == JSR0)
+            | (state == JSR1)
+            | (state == JSR2)
+            | (state == BRK0)
+            | (state == BRK1)
+            | (state == BRK2)
+            | (state == PUSH0 )
+            | (state == PUSH1)
+            | (state == PULL0)
+            | (state == RTS0) ? 8'h00
+          : DIMUX;
+
 
 /*
  * ALU CI (carry in) mux
