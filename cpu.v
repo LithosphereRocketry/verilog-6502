@@ -35,6 +35,7 @@ input RDY;              // Ready signal. Pauses CPU when RDY=0
  */
 
 reg  [15:0] PC;         // Program Counter 
+wire test = (PC == 16'h875D);
 reg  [7:0] ABL;         // Address Bus Register LSB
 reg  [7:0] ABH;         // Address Bus Register MSB
 wire [7:0] ADD;         // Adder Hold Register (registered in ALU)
@@ -1320,5 +1321,25 @@ always @(posedge clk )
         NMI_edge <= 0;
     else if( NMI & ~NMI_1 )
         NMI_edge <= 1;
+
+`ifdef SIM
+// For debugging
+wire decode = state == DECODE;
+
+reg decodeDEL = 0;
+reg [7:0] IRDEL;
+reg [15:0] PCDEL;
+
+integer f;
+initial f = $fopen(`INSTRDUMP, "w");
+
+always @(posedge clk) begin 
+    IRDEL <= IR;
+    PCDEL <= PC;
+    decodeDEL <= decode;
+    if(decodeDEL)
+        $fwrite(f, "%h %h %h %h %h %h\n", PCDEL, IRDEL, A, S, X, Y);
+end
+`endif
 
 endmodule
